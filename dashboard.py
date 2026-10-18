@@ -19,7 +19,7 @@ from psx_tools import (
 )
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None if os.environ.get("VERCEL") else "static")
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 SYMBOL_PATTERN = re.compile(r"^[A-Z0-9.&-]{1,20}$")
 

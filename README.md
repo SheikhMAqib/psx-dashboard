@@ -57,9 +57,12 @@ provides a link to open it separately if the provider's browser settings block
 embedded viewing.
 
 The dashboard frontend is written in TypeScript in `frontend/dashboard.ts`.
-Build its browser JavaScript with `npm run build`; run `npm run typecheck` to
-check types without emitting files. Flask serves the generated
-`static/dashboard.js`.
+Build its browser JavaScript and copy the dashboard assets for Vercel with
+`npm run build`; run `npm run typecheck` to check types without emitting files.
+Flask serves the generated `static/dashboard.js` locally. On Vercel, assets are
+served from `public/static/` and the Flask application is exposed through
+`app.py`. Set `CAPITALSTAKE_TOKEN` and `ANTHROPIC_API_KEY` in the Vercel project
+environment variables to enable live market data and assistant chat.
 
 ## Notes
 
