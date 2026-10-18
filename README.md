@@ -49,6 +49,11 @@ listings, quote details, and chat using the same assistant and CapitalStake
 tools. Company logo images are displayed when supplied by the market data;
 otherwise, the dashboard uses a company-symbol badge and the company's website
 favicon when available.
+If `CAPITALSTAKE_TOKEN` is not configured, the company table uses the bundled
+PSX Data Portal directory snapshot in `data/psx_companies.json`, including
+company names and sectors. It includes 758 regular and GEM listings captured
+from `https://dps.psx.com.pk/symbols` on 2026-10-18. Prices and other live
+market data still require a CapitalStake token.
 The sector chart shows every sector as a labeled, ranked bar and scrolls within
 the panel on smaller screens. Mobile users can navigate between dashboard
 sections using the fixed bottom navigation.
@@ -60,8 +65,9 @@ The dashboard frontend is written in TypeScript in `frontend/dashboard.ts`.
 Build its browser JavaScript and copy the dashboard assets for Vercel with
 `npm run build`; run `npm run typecheck` to check types without emitting files.
 Flask serves the generated `static/dashboard.js` locally. On Vercel, assets are
-served from `public/static/` and the Flask application is exposed through
-`app.py`. Set `CAPITALSTAKE_TOKEN` and `ANTHROPIC_API_KEY` in the Vercel project
+served from `public/static/` and the Flask application is exposed through the
+`dashboard:app` entrypoint in `pyproject.toml`. Set `CAPITALSTAKE_TOKEN` and
+`ANTHROPIC_API_KEY` in the Vercel project
 environment variables to enable live market data and assistant chat.
 
 ## Notes

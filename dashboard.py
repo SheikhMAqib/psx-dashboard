@@ -11,6 +11,7 @@ from psx_tools import (
     ApiError,
     find_stocks,
     get_quote,
+    get_psx_directory_stock,
     get_stock,
     list_indices,
     list_sectors,
@@ -89,6 +90,24 @@ def stock_detail(symbol: str):
     symbol = symbol.upper()
     if not SYMBOL_PATTERN.fullmatch(symbol):
         return jsonify({"error": "Invalid stock symbol."}), 400
+    if not os.environ.get("CAPITALSTAKE_TOKEN"):
+        company = get_psx_directory_stock(symbol)
+        if company is None:
+            return jsonify({"error": "Listed company not found."}), 404
+        return jsonify(
+            {
+                "stock": {
+                    "symbol": company["symbol"],
+                    "name": company["name"],
+                    "sector_name": company["sector"] or None,
+                    "segment": company["segment"],
+                    "status": "Listed",
+                },
+                "quote": {},
+                "profile": None,
+                "profile_error": "Live quotes and company profiles require CAPITALSTAKE_TOKEN.",
+            }
+        )
     try:
         stock = get_stock(symbol)
         quote = get_quote(symbol)

@@ -10,15 +10,19 @@ Endpoints used (all GET, Bearer auth, base https://csapis.com):
   /3.0/market/state              market open/closed state
   /3.0/company/profile/overview  company profile
 """
+import json
 import os
 import time
+from pathlib import Path
 
 import httpx
 
 BASE_URL = os.environ.get("CAPITALSTAKE_BASE_URL", "https://csapis.com")
 CACHE_SECONDS = 300
+PSX_DIRECTORY_PATH = Path(__file__).parent / "data" / "psx_companies.json"
 
 _cache: dict[str, tuple[float, object]] = {}
+_directory_cache: list[dict] | None = None
 
 
 class ApiError(Exception):
@@ -71,6 +75,70 @@ def _resolve_sector(text: str) -> str | None:
     return None
 
 
+def _psx_directory() -> list[dict]:
+    global _directory_cache
+    if _directory_cache is None:
+        with PSX_DIRECTORY_PATH.open(encoding="utf-8") as directory_file:
+            directory = json.load(directory_file)
+        _directory_cache = directory["companies"]
+    return _directory_cache
+
+
+def _find_psx_directory_stocks(
+    sector: str | None,
+    query: str | None,
+    limit: int,
+    offset: int,
+) -> dict:
+    directory = _psx_directory()
+    sectors = sorted({company["sector"] for company in directory if company["sector"]})
+    rows = directory
+    if sector:
+        sector_query = sector.strip().casefold()
+        rows = [
+            company
+            for company in rows
+            if sector_query in company["sector"].casefold()
+        ]
+    if query:
+        search_query = query.casefold()
+        rows = [
+            company
+            for company in rows
+            if search_query in company["symbol"].casefold()
+            or search_query in company["name"].casefold()
+        ]
+    rows = sorted(rows, key=lambda company: company["symbol"])
+    page = rows[offset : offset + limit]
+    return {
+        "total_matches": len(rows),
+        "returned": len(page),
+        "offset": offset,
+        "directory_source": "PSX Data Portal",
+        "sectors": [{"code": name, "name": name} for name in sectors],
+        "stocks": [
+            {
+                "symbol": company["symbol"],
+                "name": company["name"],
+                "sector": company["sector"] or None,
+                "last_close": None,
+                "market_cap": None,
+                "status": "Listed",
+                "segment": company["segment"],
+            }
+            for company in page
+        ],
+    }
+
+
+def get_psx_directory_stock(symbol: str) -> dict | None:
+    symbol = symbol.upper()
+    return next(
+        (company for company in _psx_directory() if company["symbol"] == symbol),
+        None,
+    )
+
+
 # ---- tool implementations -------------------------------------------------
 
 def list_sectors() -> list:
@@ -87,6 +155,11 @@ def find_stocks(
     limit: int = 40,
     offset: int = 0,
 ) -> dict:
+    limit = max(1, min(int(limit), 100))
+    offset = max(0, int(offset))
+    if not os.environ.get("CAPITALSTAKE_TOKEN"):
+        return _find_psx_directory_stocks(sector, query, limit, offset)
+
     stocks = _get("/3.0/market/stocks")
     names = _sector_names()
     rows = stocks
@@ -99,8 +172,6 @@ def find_stocks(
         q = query.lower()
         rows = [s for s in rows if q in s["symbol"].lower() or q in s["name"].lower()]
     rows = sorted(rows, key=lambda s: s.get("market_cap") or 0, reverse=True)
-    limit = max(1, min(int(limit), 100))
-    offset = max(0, int(offset))
     out = [
         {
             "symbol": s["symbol"],

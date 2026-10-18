@@ -96,6 +96,7 @@ function stockRowsFrom(value: unknown): StockRow[] {
 }
 
 function marketCap(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return "—";
   if (Math.abs(parsed) >= 1e12) return `${(parsed / 1e12).toFixed(2)}T`;
@@ -251,6 +252,7 @@ function renderSectors(value: unknown, companies: JsonRecord = {}): void {
 function renderSectorOptions(value: unknown): void {
   const sectors = rowsFrom(value, ["sectors", "data"]);
   const select = byId<HTMLSelectElement>("sector-filter");
+  const selectedSector = select.value;
   const names = sectors.map((row) => ({
     name: pick(row, ["name", "sector_name"]),
     code: pick(row, ["code", "sector"]),
@@ -259,6 +261,7 @@ function renderSectorOptions(value: unknown): void {
     const optionValue = row.name || row.code;
     return `<option value="${safe(optionValue)}">${safe(row.name || row.code)}</option>`;
   }).join("")}`;
+  select.value = selectedSector;
 }
 
 async function loadMarket(): Promise<void> {
@@ -278,7 +281,7 @@ async function loadMarket(): Promise<void> {
       || asRecord(result.indices)?.error
       || asRecord(result.sectors)?.error
     ) {
-      showMessage("Some market data could not be loaded. Check your CapitalStake token and try again.");
+      showMessage("Live prices and market indices are unavailable. Set CAPITALSTAKE_TOKEN to enable them; the PSX company directory is still available.");
     } else {
       byId("global-message").classList.add("hidden");
     }
@@ -323,7 +326,8 @@ function renderCompanies(payload: JsonRecord): void {
   });
 
   state.total = Number(payload.total_matches) || 0;
-  byId("company-count").textContent = `${number(state.total, 0)} ${state.total === 1 ? "company" : "companies"} · sorted by market capitalization`;
+  const sortOrder = payload.directory_source ? "alphabetically" : "by market capitalization";
+  byId("company-count").textContent = `${number(state.total, 0)} ${state.total === 1 ? "company" : "companies"} · sorted ${sortOrder}`;
   const start = state.total ? (state.page - 1) * PAGE_SIZE + 1 : 0;
   const end = Math.min(state.page * PAGE_SIZE, state.total);
   byId("pagination-summary").textContent = state.total ? `Showing ${number(start, 0)}–${number(end, 0)} of ${number(state.total, 0)}` : "No results";
@@ -344,6 +348,9 @@ async function loadStocks(): Promise<void> {
   try {
     const payload = await getJson(`/api/stocks?${params}`);
     renderCompanies(payload);
+    if (Array.isArray(payload.sectors)) {
+      renderSectorOptions(payload.sectors);
+    }
     if (state.page === 1 && !state.query && !state.sector) {
       byId("listed-count").textContent = number(Number(payload.total_matches) || 0, 0);
       renderSectorsFromVisible(stockRowsFrom(payload.stocks));
@@ -398,7 +405,8 @@ async function loadCompany(symbol: string): Promise<void> {
         <div class="quote-cell"><span>Day high</span><strong>${number(pick(quote, ["high", "high_price"]))}</strong></div>
         <div class="quote-cell"><span>Day low</span><strong>${number(pick(quote, ["low", "low_price"]))}</strong></div>
         <div class="quote-cell"><span>Market cap</span><strong>${safe(marketCap(pick(stock, ["market_cap", "marketCap"])))}</strong></div>
-      </div>${data.profile_error ? `<p class="mt-3 text-[10px] text-amber-700">Company profile or logo details unavailable: ${safe(data.profile_error)}</p>` : ""}</div>`;
+      </div>
+      ${data.profile_error ? `<p class="mt-3 text-[10px] text-amber-700">Additional quote or profile details unavailable: ${safe(data.profile_error)}</p>` : ""}</div>`;
     attachLogoFallbacks(byId("detail-content"));
   } catch (error) {
     byId("detail-content").textContent = `${symbol}: ${errorMessage(error)}`;
@@ -454,7 +462,7 @@ async function initialize(): Promise<void> {
       byId("assistant-state").textContent = "API KEY REQUIRED";
     }
     if (config.market_available !== true) {
-      showMessage("Set CAPITALSTAKE_TOKEN in your environment to load PSX market data.");
+      showMessage("Live prices and market indices require CAPITALSTAKE_TOKEN. The PSX company directory is still available.");
     }
   } catch (error) {
     showMessage(`Dashboard configuration unavailable: ${errorMessage(error)}`);
