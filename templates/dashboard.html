@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f7f6">
+  <title>PSX Pulse | Market Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: "#142b31",
+            forest: "#087e70",
+            mint: "#e6f6f1",
+            canvas: "#f4f7f6",
+            line: "#e7edeb"
+          },
+          boxShadow: {
+            card: "0 8px 32px rgba(24, 54, 49, .055)"
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
+<body class="bg-canvas text-ink antialiased">
+  <div class="min-h-screen lg:flex">
+    <aside class="sidebar fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col bg-[#123a39] px-5 py-6 text-white lg:flex">
+      <a class="flex items-center gap-3 px-2" href="/" aria-label="PSX Pulse home">
+        <span class="brand-mark">P</span>
+        <span>
+          <span class="block text-[17px] font-bold tracking-tight">PSX <span class="text-[#8de0c2]">PULSE</span></span>
+          <span class="block text-[10px] uppercase tracking-[.22em] text-white/45">Market intelligence</span>
+        </span>
+      </a>
+      <p class="mt-11 px-3 text-[10px] font-semibold uppercase tracking-[.2em] text-white/40">Workspace</p>
+      <nav class="dashboard-nav mt-3 space-y-1">
+        <a class="nav-link active" href="#overview"><span class="nav-icon">⌂</span>Overview</a>
+        <a class="nav-link" href="#technical-chart"><span class="nav-icon">⌁</span>Live chart</a>
+        <a class="nav-link" href="#companies"><span class="nav-icon">▦</span>Companies</a>
+        <a class="nav-link" href="#assistant"><span class="nav-icon">✳</span>AI assistant</a>
+      </nav>
+      <div class="mt-auto rounded-2xl border border-white/10 bg-white/[.06] p-4">
+        <span class="text-xs font-semibold text-white/90">Market note</span>
+        <p class="mt-2 text-xs leading-5 text-white/55">Market data is provided by CapitalStake and may be delayed.</p>
+        <a class="mt-3 inline-block text-xs font-semibold text-[#8de0c2] hover:text-white" href="https://dps.psx.com.pk/" target="_blank" rel="noreferrer">Open PSX Data Portal ↗</a>
+      </div>
+      <p class="mt-5 px-2 text-[10px] text-white/35">Not investment advice</p>
+    </aside>
+
+    <div class="min-w-0 flex-1 lg:ml-[248px]">
+      <header class="sticky top-0 z-20 border-b border-line bg-white/90 backdrop-blur">
+        <div class="mx-auto flex h-[72px] max-w-[1500px] items-center justify-between gap-4 px-5 sm:px-8">
+          <div class="flex items-center gap-3">
+            <span class="brand-mark lg:hidden">P</span>
+            <div>
+              <p class="text-sm font-semibold text-ink">Pakistan Stock Exchange</p>
+              <p class="text-[11px] text-slate-500">Market dashboard</p>
+            </div>
+          </div>
+          <div class="hidden max-w-[380px] flex-1 md:block">
+            <label class="search-shell">
+              <span class="text-slate-400">⌕</span>
+              <input id="header-search" type="search" placeholder="Search symbol or company..." aria-label="Search symbols or companies">
+              <kbd>Ctrl K</kbd>
+            </label>
+          </div>
+          <div class="flex items-center gap-3">
+            <span id="market-pill" class="status-pill"><span class="status-dot"></span>Checking market</span>
+            <span class="avatar-user" aria-label="Market user">M</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto max-w-[1500px] space-y-7 px-5 py-7 pb-24 sm:px-8 sm:py-9 sm:pb-24 lg:pb-9">
+        <section id="overview">
+          <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p class="eyebrow"><span id="date-label"></span> <span class="mx-2 text-slate-300">/</span> Market overview</p>
+              <h1 class="mt-2 text-[28px] font-bold tracking-tight text-ink sm:text-[34px]">Market at a glance.</h1>
+              <p class="mt-1 text-sm text-slate-500">A clear view of Pakistan’s equity market, all in one place.</p>
+            </div>
+            <button id="refresh-button" class="button-secondary"><span class="refresh-icon">↻</span> Refresh data</button>
+          </div>
+          <div id="global-message" class="mt-5 hidden rounded-xl border px-4 py-3 text-sm"></div>
+          <div id="index-grid" class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="skeleton h-[150px]"></div><div class="skeleton h-[150px]"></div>
+            <div class="skeleton h-[150px]"></div><div class="skeleton h-[150px]"></div>
+          </div>
+        </section>
+
+        <section class="grid gap-5 xl:grid-cols-[1.55fr_1fr]">
+          <article class="panel">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h2 class="section-title">Sector landscape</h2>
+                <p class="mt-1 text-sm text-slate-500">Listed market cap (PKR) · ranked largest first</p>
+              </div>
+              <span id="sector-chart-count" class="soft-tag">ALL SECTORS</span>
+            </div>
+            <div id="sector-chart-scroll" class="sector-chart-scroll mt-4">
+              <div id="sector-chart" class="sector-bar-list" role="list" aria-label="Market capitalization by sector"></div>
+            </div>
+            <p id="chart-empty" class="hidden py-14 text-center text-sm text-slate-500">Sector chart will appear when market data is available.</p>
+            <p id="sector-chart-hint" class="mt-3 text-xs text-slate-400">Bars are ordered largest to smallest. Scroll the chart to see every sector.</p>
+          </article>
+          <article class="panel">
+            <div class="flex items-start justify-between">
+              <div>
+                <h2 class="section-title">Market pulse</h2>
+                <p class="mt-1 text-xs text-slate-500">Today’s market snapshot</p>
+              </div>
+              <span class="pulse-mark">↗</span>
+            </div>
+            <div class="mt-5 grid grid-cols-2 gap-3">
+              <div class="stat-tile"><span class="stat-label">Listed companies</span><strong id="listed-count">—</strong><span class="stat-sub">Across all sectors</span></div>
+              <div class="stat-tile"><span class="stat-label">Sectors covered</span><strong id="sector-count">—</strong><span class="stat-sub">PSX market sectors</span></div>
+            </div>
+            <div class="mt-5 border-t border-line pt-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-600">Most active sectors</span>
+                <a href="#companies" class="text-xs font-semibold text-forest hover:underline">Explore all</a>
+              </div>
+              <div id="sector-chips" class="mt-3 flex flex-wrap gap-2"><span class="text-xs text-slate-400">Loading sector data...</span></div>
+            </div>
+            <p id="market-updated" class="mt-5 text-[11px] text-slate-400">Data timestamp unavailable</p>
+          </article>
+        </section>
+
+        <section id="technical-chart" class="panel technical-chart-panel">
+          <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div class="flex items-start gap-3">
+              <span class="pulse-mark" aria-hidden="true">⌁</span>
+              <div>
+                <p class="eyebrow">SCSTrade · technical analysis</p>
+                <h2 class="mt-1 text-lg font-bold tracking-tight text-ink">Real-time charting</h2>
+                <p class="mt-1 text-sm text-slate-500">Interactive PSX charts, indicators, and drawing tools from SCSTrade.</p>
+              </div>
+            </div>
+            <a class="button-secondary self-start sm:self-auto" href="https://www.scstrade.com/TechnicalAnalysis/TA_RealTimeCharting.aspx" target="_blank" rel="noopener noreferrer">
+              Open chart separately <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+          <div class="technical-chart-frame mt-5">
+            <iframe
+              src="https://www.scstrade.com/TechnicalAnalysis/TA_RealTimeCharting.aspx"
+              title="SCSTrade real-time PSX technical analysis chart"
+              loading="lazy"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allow="fullscreen"
+            ></iframe>
+          </div>
+          <p class="mt-3 text-xs text-slate-400">Chart provided by SCSTrade. Market data, availability, and terms are controlled by SCSTrade.</p>
+        </section>
+
+        <section id="companies" class="panel overflow-hidden p-0">
+          <div class="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-end sm:px-6 sm:pt-6">
+            <div>
+              <p class="eyebrow">Explore the market</p>
+              <h2 class="mt-1 text-xl font-bold tracking-tight text-ink">Listed companies</h2>
+              <p id="company-count" class="mt-1 text-xs text-slate-500">Browse PSX-listed companies by sector</p>
+            </div>
+            <div class="flex flex-col gap-2 sm:flex-row">
+              <label class="filter-search"><span>⌕</span><input id="company-search" type="search" placeholder="Search by name or symbol" aria-label="Search companies"></label>
+              <select id="sector-filter" class="select-control" aria-label="Filter by sector"><option value="">All sectors</option></select>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="company-table w-full text-left">
+              <thead><tr><th>Company</th><th>Sector</th><th class="text-right">Last close</th><th class="text-right">Market cap</th><th class="text-right">Status</th></tr></thead>
+              <tbody id="company-rows"><tr><td colspan="5" class="px-6 py-12 text-center text-sm text-slate-400">Loading companies...</td></tr></tbody>
+            </table>
+          </div>
+          <p class="px-5 pt-3 text-[10px] text-slate-400 sm:px-6">Company logos appear when supplied by the data provider; otherwise, the ticker badge is shown.</p>
+          <div class="flex flex-col justify-between gap-3 border-t border-line px-5 py-4 sm:flex-row sm:items-center sm:px-6">
+            <p id="pagination-summary" class="text-xs text-slate-500">—</p>
+            <div class="flex items-center gap-2">
+              <button id="page-prev" class="page-button" disabled>← Previous</button>
+              <span id="page-label" class="px-2 text-xs font-medium text-slate-500">Page 1</span>
+              <button id="page-next" class="page-button" disabled>Next →</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="grid gap-5 xl:grid-cols-[1fr_1.25fr]">
+          <article id="company-detail" class="panel min-h-[275px]">
+            <div class="flex items-center justify-between">
+              <div><h2 class="section-title">Company snapshot</h2><p class="mt-1 text-xs text-slate-500">Select a company to see its latest quote</p></div>
+              <span class="pulse-mark">⌖</span>
+            </div>
+            <div id="detail-content" class="mt-7 flex min-h-[145px] items-center justify-center text-center text-sm text-slate-400">Choose a company from the table above.</div>
+          </article>
+
+          <article id="assistant" class="panel">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="assistant-mark">✳</span>
+                <div><h2 class="section-title">PSX assistant</h2><p class="mt-1 text-xs text-slate-500">Market answers grounded in live data</p></div>
+              </div>
+              <span id="assistant-state" class="soft-tag">AI ANALYST</span>
+            </div>
+            <div id="chat-messages" class="chat-messages mt-5" aria-live="polite">
+              <div class="chat-bubble assistant-bubble">Ask about PSX indices, sectors, or listed companies. I’ll look up the latest available data.</div>
+            </div>
+            <form id="chat-form" class="mt-4 flex items-center gap-2">
+              <input id="chat-input" class="chat-input" type="text" maxlength="4000" placeholder="Ask a market question..." aria-label="Ask the PSX assistant">
+              <button id="chat-send" class="send-button" type="submit" aria-label="Send question">↑</button>
+            </form>
+            <p id="chat-note" class="mt-2 text-[10px] text-slate-400">Information only — not investment advice.</p>
+          </article>
+        </section>
+        <footer class="flex flex-col justify-between gap-2 border-t border-line py-4 text-[11px] text-slate-400 sm:flex-row">
+          <span>PSX Pulse · Market information for educational purposes</span>
+          <span>Data from CapitalStake · <a class="hover:text-forest" href="https://dps.psx.com.pk/" target="_blank" rel="noreferrer">PSX Data Portal ↗</a></span>
+        </footer>
+      </main>
+    </div>
+  </div>
+  <nav class="mobile-nav" aria-label="Dashboard sections">
+    <a class="mobile-nav-link active" href="#overview"><span aria-hidden="true">⌂</span>Overview</a>
+    <a class="mobile-nav-link" href="#technical-chart"><span aria-hidden="true">⌁</span>Chart</a>
+    <a class="mobile-nav-link" href="#companies"><span aria-hidden="true">▦</span>Companies</a>
+    <a class="mobile-nav-link" href="#assistant"><span aria-hidden="true">✳</span>Ask</a>
+  </nav>
+  <script src="{{ url_for('static', filename='dashboard.js') }}" defer></script>
+</body>
+</html>
